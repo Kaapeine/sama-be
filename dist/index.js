@@ -56,12 +56,16 @@ app.get("/search", (req, res) => {
     getReleaseGroups();
 });
 app.put("/add-to-listen", (req, res) => {
-    const albumId = req.body.albumId;
-    const userId = req.body.userId;
+    const albumID = req.body.albumID;
+    const uuid = req.body.uuid;
+    if (!albumID || !uuid) {
+        res.status(500).send("Invalid request!");
+        return;
+    }
     const updateUser = () => __awaiter(void 0, void 0, void 0, function* () {
-        yield users.updateOne({ id: userId }, {
+        yield users.updateOne({ uuid: uuid }, {
             $addToSet: {
-                "to-listen": albumId,
+                "to-listen": albumID,
             },
         });
         res.status(200).json("Success!");

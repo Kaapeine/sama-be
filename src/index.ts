@@ -56,15 +56,20 @@ app.get("/search", (req: Request, res: Response) => {
 });
 
 app.put("/add-to-listen", (req: Request, res: Response) => {
-  const albumId: String = req.body.albumId;
-  const userId: String = req.body.userId;
+  const albumID: String = req.body.albumID;
+  const uuid: String = req.body.uuid;
+
+  if (!albumID || !uuid) {
+    res.status(500).send("Invalid request!");
+    return;
+  }
 
   const updateUser = async () => {
     await users.updateOne(
-      { id: userId },
+      { uuid: uuid },
       {
         $addToSet: {
-          "to-listen": albumId,
+          "to-listen": albumID,
         },
       }
     );
