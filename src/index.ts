@@ -1,8 +1,9 @@
 import express, { Request, Response } from "express";
 import cors from "cors";
 import axios from "axios";
-import { Album } from "./types.js";
+import { Album, User } from "./types.js";
 import { MongoClient } from "mongodb";
+import { randomUUID } from "crypto";
 
 const app = express();
 
@@ -55,8 +56,8 @@ app.get("/search", (req: Request, res: Response) => {
 });
 
 app.put("/add-to-listen", (req: Request, res: Response) => {
-  const albumId: string = req.body.albumId;
-  const userId: string = req.body.userId;
+  const albumId: String = req.body.albumId;
+  const userId: String = req.body.userId;
 
   const updateUser = async () => {
     await users.updateOne(
@@ -67,7 +68,6 @@ app.put("/add-to-listen", (req: Request, res: Response) => {
         },
       }
     );
-    console.log("Adding", albumId, await users.findOne({ id: "0" }));
     res.status(200).json("Success!");
   };
 
@@ -75,21 +75,28 @@ app.put("/add-to-listen", (req: Request, res: Response) => {
 });
 
 app.get("/to-listen", (req: Request, res: Response) => {
-  const userId: any = req.query.uid;
+  const uuid: any = req.query.uuid;
 
   const getToListen = async () => {
-    const user = await users.findOne({ id: userId });
+    const user = await users.findOne({ uuid: uuid });
     if (user) {
       const toListen = user["to-listen"];
-
       const toListenAlbums: Array<Album> = [];
+
+      if (!toListen || toListen.length === 0) {
+        res.status(200).json({
+          toListen: [],
+        });
+      }
+
       await Promise.all(
-        toListen.map(async (albumId: string) => {
+        toListen.map(async (albumId: String) => {
           const album = await getAlbumInfo(albumId);
           album.coverUrl = await getCoverArt(albumId);
           toListenAlbums.push(album);
         })
       );
+
       res.status(200).json({
         toListen: toListenAlbums,
       });
@@ -101,7 +108,36 @@ app.get("/to-listen", (req: Request, res: Response) => {
   getToListen();
 });
 
-async function getAlbumInfo(id: string) {
+app.post("/create-user", (req: Request, res: Response) => {
+  const name: String = req.body.name;
+  const pass: String = req.body.pass;
+  const uuid: String = randomUUID();
+
+  if (!name || !pass) {
+    res.status(500).send("Details not sent!");
+    return;
+  }
+
+  const createUser = async () => {
+    const user: User = {
+      uuid: uuid,
+      name: name,
+      pass: pass,
+    };
+
+    try {
+      await users.insertOne(user);
+      res.status(200).send("User created successfully");
+    } catch (error) {
+      console.log(error);
+      res.status(500).send("User creation failed");
+    }
+  };
+
+  createUser();
+});
+
+async function getAlbumInfo(id: String) {
   let album: Album;
 
   try {
@@ -124,7 +160,7 @@ async function getAlbumInfo(id: string) {
   }
 }
 
-async function getCoverArt(id: string) {
+async function getCoverArt(id: String) {
   try {
     const res = await axios.get(
       `http://coverartarchive.org/release-group/${id}`
@@ -141,5 +177,4 @@ async function getCoverArt(id: string) {
 
 async function main() {
   console.log("App init");
-  console.log(await users.findOne({ id: "0" }));
 }

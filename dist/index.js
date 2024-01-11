@@ -11,6 +11,7 @@ import express from "express";
 import cors from "cors";
 import axios from "axios";
 import { MongoClient } from "mongodb";
+import { randomUUID } from "crypto";
 const app = express();
 app.use(express.urlencoded({ extended: true })); //middleware for parsing urlencoded data
 app.use(express.json());
@@ -63,18 +64,22 @@ app.put("/add-to-listen", (req, res) => {
                 "to-listen": albumId,
             },
         });
-        console.log("Adding", albumId, yield users.findOne({ id: "0" }));
         res.status(200).json("Success!");
     });
     updateUser();
 });
 app.get("/to-listen", (req, res) => {
-    const userId = req.query.uid;
+    const uuid = req.query.uuid;
     const getToListen = () => __awaiter(void 0, void 0, void 0, function* () {
-        const user = yield users.findOne({ id: userId });
+        const user = yield users.findOne({ uuid: uuid });
         if (user) {
             const toListen = user["to-listen"];
             const toListenAlbums = [];
+            if (!toListen || toListen.length === 0) {
+                res.status(200).json({
+                    toListen: [],
+                });
+            }
             yield Promise.all(toListen.map((albumId) => __awaiter(void 0, void 0, void 0, function* () {
                 const album = yield getAlbumInfo(albumId);
                 album.coverUrl = yield getCoverArt(albumId);
@@ -89,6 +94,31 @@ app.get("/to-listen", (req, res) => {
         }
     });
     getToListen();
+});
+app.post("/create-user", (req, res) => {
+    const name = req.body.name;
+    const pass = req.body.pass;
+    const uuid = randomUUID();
+    if (!name || !pass) {
+        res.status(500).send("Details not sent!");
+        return;
+    }
+    const createUser = () => __awaiter(void 0, void 0, void 0, function* () {
+        const user = {
+            uuid: uuid,
+            name: name,
+            pass: pass,
+        };
+        try {
+            yield users.insertOne(user);
+            res.status(200).send("User created successfully");
+        }
+        catch (error) {
+            console.log(error);
+            res.status(500).send("User creation failed");
+        }
+    });
+    createUser();
 });
 function getAlbumInfo(id) {
     return __awaiter(this, void 0, void 0, function* () {
@@ -134,6 +164,5 @@ function getCoverArt(id) {
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("App init");
-        console.log(yield users.findOne({ id: "0" }));
     });
 }
